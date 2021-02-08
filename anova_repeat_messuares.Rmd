@@ -1,0 +1,577 @@
+---
+title: "Anova de Medidas Repetidas"
+author:  "Dr. José Wesley^[José Wesley é Doutor em Biometria e Estatística Aplicada, Mestre em Biometria e Estatística Aplicada, Bacharel em Ciências Biológicas e Cientista de Dados com conhecimentos em Probabilidade, Inferência Estatística, Desenho de Experimentos, Machine Learning e Reconhecimento de Padrões. O mesmo possui experiência comprovada em Estatística experimental, Modelagem (habilidades em modelos lineares, modelos lineares generalizados, modelos não lineares, modelos lineares e não lineares mistos, modelos baseados em processos, modelos epidemiológicos e ecofisiológicos), Séries temporais, Machine learning (habilidades com algoritmos de Redes neurais artificiais, máquinas de vetores de suporte, ávores de decissão, random forest, KNN), Big Data, entre outras. Com habiliddes adicionais em Webscraping, produção de mapas estatícos e dinâmicos em R. Com expertise em Excel, nas linguagens de programação R, Python e C, no ecossitema Hadoop e em Spark. Já ministrou aulas em Pós graduação, graduação e EAD. Também misnistra cursos de Estatística, R, Python, Big Data, Machine Learning, bem como, presta consutlorias de Estatística e Ciência de Dados. Contato: wesleyprofbio@hotmail.com]"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Título da Análise}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## 1. Introdução
+
+A análise de **medidas repetidas** é usada quando a mesma unidade experimental (pessoa, planta, solo, meio de cultura, bactéria, etc) é usada em todas as condições de um experimento, ou seja, a mesma unidade experimental é medida repetidas vezes de forma a se analisar o efeito de um tratamento. Por exemplo, queremos avaliar o crescimento de uma espécie de planta, logo tomamos medidas da altura em intervalos de tempo constante. Assim, as mesmas árvores seriam medidas ao longo do tempo, portanto, seria interessante controlar para as diferenças individuias o efeito do tempo. O controle das diferenças individuais consiste na possibildiade de testar cada ávore em todos os intervalos de tempo.      
+
+## 2. Pressupostos da Anova de medidas repetidas
+
+Os principais pressupostos para a realização desta análise são *esfericidade* dos dados, a homogeneidade de variâncias, normalidade e independência dos resíduos. Bem como, a relação linear entre a variável independente e a dependente deve existir, já que estamos tratando de modelos lineares. 
+
+### 2.1 Teste de Esfericidade
+
+O que é esfericidade? E por que ela é importante? A hipótese de **esfericidade** é definida como: a relação entre entre pares da unidade experimental é semelhante entre os tratamentos (ou seja, o nível de dependência entre condições experimentais é aproximadamente o mesmo). A hipótese de esfericidade se assemelha a hipótese de homogeneidade de variâncias na anova comum (entre grupos independentes).
+
+A esfericidade também conhecida como circularidade é uma forma mais branda de se medir a *simetria composta*. Toma-se como verdadeira a simetria composta quando as variâncias entre condições são semelhantes e as covariâncias entre paraes também são semelhantes. A esfericidade pode ser entendida também como a igualdade de variâncias das diferenças entre níveis de tratamento. Por exemplo, se calcularmos as diferenças par a par dos níveis de um tratamento é preciso que as variâncias dessas diferenças sejam semelhantes. Considerando o experimento do crescimetno em altura de uma espécie de planta, podemos testar a hipótese de **esfericidade** calculando as diferenças entres os néveis do tratamento (diferenças entre plantas) e depois calculando a variância dessas diferenças ao longo do tempo (a vriãncia das diferenças dentro condição que se repete), logo, a esfericidade é confirmada se estas variãncias são semelhantes (Tabela 1).  
+
+Tempo | Árv. 1   | Árv. 2     | Árv. 3 | (Árv. 1 - Árv. 2)     | (Árv. 1 - Árv. 3)     | (Árv. 2 - Árv. 3)
+------|----------|----------|----------|-----------------------|-----------------------|------------------------
+1     | 20       | 17       | 10       |3                      | 10                    | 7
+2     | 14       | 17       | 12       | -3                    | 2                     | 5
+3     | 20       | 20       | 17       | 0                     | 3                     | 3
+4     | 17       | 12       | 10       |  5                    | 7                     | 2
+5     | 15       | 20       | 10       | -5                    | 5                     | 10
+**Variância**|   |          |          |17,0                   |10,3                   |10,3    
+
+Em alguns casos pode acontecer que nem todas as variâncias das diferenças sejam semelhantes, no entanto, consideramos os dados com *esfericidade local* quando a maioria destas diferenças são semelhantes e isto já é válido para não rejeitarmos a hipótese de esfericidade, como foi o caso do nosso exemplo.
+
+Um dos principais testes estatísticos para medir a esfericidade é o **teste de Mauchly**, que possui as seguintes hipóteses.
+
+- $H_0:$ As variâncias das diferenças entre tratamentos (condições) são semelhantes;
+- $H_1:$ As variâncias das diferenças entre tratamentos (condições) não são semelhantes.
+
+Se a probabilidade da estatística do teste de Mauchly é maior ou igual a $0,05$ (p valor > $0,05$) não rejeitamos a hipótese nula de que as variâncias das diferenças são melhantes, por outro lado, se o p valor for menor que 0,05 rejeitamos a hipótese nula, logo as variâncias das diferenças entre condições não são semelhantes.
+
+Quando a esfericidade não é atendida se perde poder do **teste F** e os valores calculados de F não podem ser comparados com os valores tabulados da distribuição F. Calma, nem tudo está perdido, diversos autores já propuseram cálculos alternativos para produzir uma razão F válida. As principais modificações são as de **Greenhouse e Geisser** e a de **Huynh e Feldt** que propuseram uma correção no cálculo dos graus de liberdade usados para encontrar o valor de F. A correção de **Greenhouse e Geisser** é mais conservadora esta deve ser utilizada quando $\epsilon < 0,75$ ($\epsilon$ representa a medida de esfericidade), quando  $\epsilon > 0,75$
+a correção de **Huynh e Feldt** deve ser empregada.
+
+Alguns autores sugerem o uso da MANOVA (análise de variância multivariada) no lugar da Anova de medidas repetidas, justamente pelo fato de que na MANOVA o pressuposto de esfericidade é relaxado. Para resumir o melhor uso, simplificamos da seguinte forma, use MANOVA quando houver violação na esfericidade $\epsilon < 0,7$ ($\epsilon$ representa a medida de esfericidade) e o tamanho da amostra *n* for maior que $k + 10$ (k representa o número de níveis para as medidas repetidas), use ANOVA de medidas repetidas se *n* for menor que $k + 10$ ou quando a esfericidade for maior que $0,7\; (\epsilon > 0,7)$.  
+
+### 2.2 Homogeneidade de Variâncias dos Resíduos
+
+Em aplicações gerais dos modelos de regressão a suposição de homocedasticidade
+pode ser questionada. Quando esse pressuposto não é satisfeito, a perda, da eficiência no uso
+do método dos mínimos quadrados ordinários pode ser considerável, mais importantemente,
+o viés na estimação do erro padrão pode levar a inferências inválidas (BREUSCH; PAGAN,
+1979). Sabe-se que a presença de heterocedasticidade em modelos de regressão leva quase
+certamente a estimação de parâmetros consistentes, mas ineficientes e a estimação da matriz
+de covariância inconsistente. Como resultado, inferências falhas são realizadas, quando
+estatisticamente testa-se hipóteses na presença de heterocedasticidade (WHITE, 1980). O
+gráfico dos resíduos em função dos valores estimados pode ser empregado para verificar se
+a variância dos erros são constante, ou seja, os resíduos se distribuem aleatoriamente em
+torno da média zero. Um dos testes mais utilizados para verificar a heterocedasticidade de
+um modelo é o de Breusch-Pagan, em que a hipótese nula é a que os erros tem variância
+constante, homocedástica, logo, se o p-valor for inferior a um α determinado, rejeita-se a
+hipótese de nulidade.
+
+### 2.3 Normalidade dos Resíduos
+
+Um dos pressupostos mais importantes na análise de regressão é a presença de
+normalidade, assim quando se retira uma amostra da população para os modelos de testes,
+deve-se supor que ela segue uma distribuição normal. Pode-se constatar a normalidade
+dos resíduos da regressão pelo gráfico "Q-Q plot", que testa se uma distribuição empírica
+está em conformidade com uma teórica, de modo geral, o gráfico mostra o quantil de
+probabilidade esperada se a distribuição fosse normal em função dos resíduos. Além da
+análise gráfica a normaidade pode ser constatada pelo teste de Shapiro-Wilk (1965), que assume como hipótese nula a
+distribuição normal dos resíduos. 
+
+## 3. Teoria da Anova de Medidas Repetidas
+
+Na Anova de medidas repetidas de um fator o efeito do experimento aparece na variância entre unidades experimentais (pessoas, participantes, planta, etc), ao invés do que acontece na Anova independente em que a variância ocorre entre grupos ou tratamentos. É importante destacar também que na Anova independente a variância entre unidades experimentias corresponde a Soma de quadrados dos resíduos, ela não é afetada pelo desenho experimental já que todas as intervenções são realizadas em unidades diferentes (independentes).  
+
+Quando temos um desenho experimental com medidas repetidas o efeito do tratamento é expresso dentre (within-dentro) unidades experimentais , logo, a variância dentre unidades experimentias é constituída do **efeito do tratamento** e das **diferenças individuais**. Assim, quando realizamos as mesmas intervenções para todas as unidades experimentais, qualquer variação não explicada pelo tratamento (intervenção) são consideradas variações aleatórias (conhecidas como erro, ou mais apropriadamente **resíduo aleatório**). O final da Anova é expresso pelo teste F, o qual tem a função de evidenciar se existe diferenças entre a variância promovidade pelo tratamento e a variância causa por meio de efeitos aleatórios. 
+
+Na Anova de medidas repetidas a **Soma de Quadrados Totais** é oriunda da *Soma de Quadrados* entre grupos mais a *Soma de Quadrados Entre Participantes*. A **Soma de Quadrados Entre Participantes** por sua vez é oriunda da **Soma de Quadrado do Modelo**, ou seja, do efeito do experimento e da **Soma de Quadrado do Resíduo**. Para nosso entendimento, vamos considerar o seguinte exemplo:
+
+> Um pesquisador pretende avaliar o crescimento de quatros clones de *Eucalyptus* em região semiárida do sertão pernambucanco (normal climatológica de 740 mm). Para o procedimento, ele selecionou 25 exemplares dos clones C11, C15, C21, C25, C33, C37, C39 e C41 e estimou a altura por meio de um clinômetro de Higloft a partir dos 18 meses até os 42 meses de idade. Na tabela abaixo são apresentados os valores da média de altura (m) para cada clone em cada intervalo de tempo. 
+
+Clone    | 18 meses | 24 meses | 30 meses | 36 meses | Média   | **$S^2$**  
+---------|----------|----------|----------|----------|---------|-----------
+C11      | 6,5      | 8,4      | 10,0     |11,0      |**8,975**| **3,869**
+C15      | 6,6      | 8,0      | 9,2      |9,9       |**8,425**| **2,096**
+C21      | 6,0      | 7,8      | 9,0      |9,8       |**8,150**| **2,730**
+C25      | 5,9      | 7,6      | 9,3      |10,2      |**8,250**| **3,616**
+C33      | 6,9      | 8,9      | 10,4     |11,3      |**9,375**| **3,702**
+C37      | 5,9      | 8,3      | 9,6      |10,4      |**8,555**| **3,870**
+C39      | 6,5      | 8,1      | 9,7      |10,5      |**8,700**| **3,146**
+C41      | 6,2      | 8,2      | 9,4      |10,2      |**8,500**| **3,023**
+**Média**| **6,312**| **8,162**| **9,575**|**10,41** |         |   
+
+
+### 3.1 Soma de Quadrados Totais (SQT)
+
+Na Anova de medidas repetidas a SQT é calculada da mesma forma que na Anova independetne. Neste caso, queremos calcular a variância total que é variância de todos os escores (valores/entradas) independente do grupo/tratamento ao qual ele pertence. Para calcualr a SQT vamos utilizar a seguinte expressão:
+
+$$SQT = S^2_{Total}\cdot (N-1)$$
+
+Em que, $N$ é o número total de escores. Para o nosso exemplo temos que:
+
+$$SQT = Var(6,5 +,\; ...,\;+ 10,2) \cdot (32 - 1)$$
+Logo, 
+
+$$SQT = 2,666 \cdot 31 = 82,646 $$
+
+Cabe também definirmos os graus de liberdade (gl) para a SQT, nete caso, temos que o $gl_T$ para a SQT é obtido por $(N-1)$, ou seja, $gl_T = 31$.
+
+É importante destacar que quando calculamos a soma de quadrados estamos calculando a diferença elevada ao quadrado entre a média e os valores (escores) individuais.  
+
+### 3.2 A Soma de Quadrados da Variação Dentre Unidades Experimentias (SQW)
+
+Esta é a variação mais importante do nosso desenho experimental, ela explica a variação dentre (dentro) unidades experimentais (pessoas, plantas, etc). Esta variação surge devido a nossas intervenções (ou ao fato do que estamos controlando) dentre cada unidade experimental. Isto acontece porque neste caso estamos interessados na variação dentro de uma unidade experimental (UE) a qual foi submetida a diferentes intervenções e não na variação do grupo (tratamento) como na Anova independente. Para Calcular-mos a Soma de quadrads da variação dentre Unidades Experimentais (SQW) utilizamos a sguinte expressão:
+
+$$SQW = S^2_{UE_1}\cdot(n_1-1) + S^2_{UE_2}\cdot(n_2-1) +, ..., + S^2_{UE_k}\cdot(n_k-1)$$
+
+Em que: $n$ é o número de intervenções em cada unidade experimental (ou tempo), $k$ é o número de unidades experimentais. Para o nosso exemplo os cálculos das variâncias para cada unidade experimental foi apresentado na tabela, faremos uso deles para seguirmos com os cálculos:
+
+$$SQW = 3,869\cdot(4-1) + 2,096\cdot(4-1) + 2,73\cdot(4-1) + 3,616\cdot(4-1) + 3,702\cdot(4-1) +$$
+$$ 3,870\cdot(4-1) + 3,146\cdot(4-1) + 3,023\cdot(4-1)$$
+$$SQW = 11,607 + 6,288 + 8,190 + 10,848 + 11,106 + 11,610 + 9,438 + 9,069$$
+$$SQW = 78,156$$
+
+Para encontrarmos os graus de liberdade temos levar em consideração as partições, primeiro obtemos os graus de liberdade dentro da unidade experimental dado por $(n-1)$ e posteriormente obtemos os graus de liberdade para as unidades experimentais $(k-1)$, esta fórmula pode ser resumida na seguinte expressão:
+
+$$gl_W = k\cdot(n-1)$$
+
+No nosso exemplo os graus de liberdade são cálculados conforme: $gl_W = 8\cdot (4-1) = 24$.
+
+### 3.3 Soma de Quadrados do Efeito do Experimento (SQM)
+
+Como definimos na SQW estão contidas duas fontes de variações, a variação do nosso efeito experimental (controlada) e a variação aleatória (não controlada, resíduos). Desta forma, cabe agora tentarmos explicar quando dessa variação é explicada pelo desenho experimental (ou intervenção, manipulação, tempo,  etc). 
+
+O que temos que fazer para encontrar-mos a variação explicada pelo desenho experimental é observar todas as varâncias das diferenças entre as médias em cada intervenção (tempo) e a média geral. Podemos utilizar a próxima expressão para calcular a SQM:
+
+$$SSM = \sum_{j=1}^{n} k \cdot (\bar{x}_j - \bar{x})^2$$
+
+Mais uma vez utilizando os exemplos da nossa tabela vamos calclar a SQM.
+
+$$SQM = 8 \cdot (6,312 - 8,616)^2 + 8 \cdot (8,162 - 8,616)^2 + 8 \cdot (9,575 - 8,616)^2 + 8 \cdot (10,410 - 8,616)^2$$
+
+$$SQM = 42,467 + 1,649 + 7,358 + 25,748 = 77,222$$
+
+A dedução dos graus de liberdade para a SQM pode ser realizada pelo número de intervenções (tempo) utilizadas retirando um aunidade. Desta forma, os graus de liberdade podem ser obtidos por:
+
+$$gl = (n-1)$$
+
+Para o nosso experimento temos que: $gl_M = (4-1) = 3$.
+
+### 3.4 Soma de Quadrados dos Resíduos (SQR)
+
+Como sabemos primordialmente a Soma de Quadros dentre Unidades Experimentais é composta da Soma de Quadrados do Efeito do Experimento e pela Soma de Quadrado dos Resíduos. Desta forma, podemos chegar a SQR utilizando as diferenças entre a SQW e a SQM, logo podemos utilizar a seguinte expressão:
+
+$$SQR = SQW - SQM$$
+
+Para o nosso exemplo temos que:
+
+$$SQR = 78,156 - 77,222 = 0,936$$
+
+A expressão para os graus de liberdade segue a mesma lógica:
+
+$$gl_R = gl_W - gl_M $$
+
+Para o nosso exemplo temos:
+
+$$gl_R = 24 - 3 = 21$$
+
+### 3.5 Os Quadrados Médios 
+
+A soma de quadrados é uma medida tendenciosa por isso para tentarmos eliminar essa tendência calculas a média da soma de quadrados, esta medida é obtida dividindo-se as somas de quadrados pelo seu respectivo grau de liberdade.
+
+#### 3.5.1 Quadrado Médio do Efeito do Experimento (QMM)
+
+Podemos calcular utilizando a seguinte fórmula:
+
+$$QMM = \frac{SQM}{gl_M}$$
+
+Para o nosso exemplo temos:
+
+$$QMM = \frac{77,222}{3} = 25,741$$
+
+#### 3.5.1 Quadrado Médio do Resíduo (QMR)
+
+Podemos calcular utilizando a seguinte fórmula:
+
+$$QMR = \frac{SQR}{gl_R}$$
+
+Para o nosso exemplo segue:
+
+$$QMR = \frac{0,936}{21} = 0,045$$
+
+### 3.6 O teste F
+
+O F cálculado expressa a razão da variação explicada pelo desenho experimental (modelo) e variação proveniente do efeito aleatório. Para encontramos utilizamos a seguinte expressão:
+
+$$F_{calc} = \frac{QMM}{QMR}$$
+
+Para nossa situação experimental temos:
+
+$$F_{calc} = \frac{25,741}{0,045} = 572,022$$
+
+Como o valor é bem maio que $1$ podemos afirmar com convicção de que o feito do experimento (tempo) é significativo no crescimento em altura dos $8$ clones de *Eucalyptus* em condição semiárida do Nordeste brasileiro. Se quisermos verifcar a tabela F, para consultarmos os valores tabelados, podemos utilzar os seguintes graus de liberdade $gl_M$ (3) e $gl_R$ (21). Pela Tabela F de Fisher-Snedecor nosso F tabelado ($F_{tab}$) é igual a $F_{\alpha;gl_M;gl_R} = F_{0,05; 3; 21} = 3,072$, logo como $F_{calc} > F_{tab}$ podemos concluir que existem diferenças significaivas.  
+
+## 4. Anova de Medidas Repetidas no R
+
+Incialmente vamos digitar os dados diretamente no R, você pode também digitar em uma planilha e depois importar estes dados, aqui como temos um exemplo com poucas entradas digitaremos diretamente.
+
+```{r}
+#Montando o Banco de dados
+altura <- data.frame(Clone = c("C11", "C15", "C21", "C25", "C33", "C37", "C39", "C41"),
+                     I18 = c(6.5, 6.6, 6, 5.9, 6.9, 5.9, 6.5, 6.2),
+                     I24 = c(8.4, 8, 7.8, 7.6, 8.9, 8.3, 8.1, 8.2),
+                     I30 = c(10, 9.2, 9, 9.3, 10.4, 9.6, 9.7, 9.4),
+                     I36 = c(11, 9.9, 9.8, 10.2, 11.3, 10.4, 10.5, 10.2)) 
+
+```
+
+
+Para iniciar a análise temos que modificar o formato dos dados, pois os dados de entrada no R devem ser inseridos no formato **long**, em que teremos uma coluna com o nome da variável **Clone**, uma coluna especificando a **Idade** (tempo) e uma coluna coms os valores de **Altura** (escores). Vamos utilizar estas mudanças de forma mais automatizada utilizando o pacote *tidyr* e o pacote *dplyr*.
+
+```{r message=F}
+#Caso não tenha os pacotes instalados descomente os comandos abaixo
+#install.packages("dplyr", dependencies = T)
+#install.packages("tidyr", dependencies = T)
+
+#Carregando os pacotes necessários
+library(dplyr)
+library(tidyr)
+
+#Com o código abaixo estamos pedindo para a função pivot_longer receber 
+#a base de dados altura, selecionar as colunas com os valores de altura
+#nas diferentes idades e coloca-los um abaixo do outro para todos os 
+#clones, estamos cirando duas coluns que recebem as identificações da 
+#Idade e os valores da Altura.
+altura.l <- altura %>% 
+  pivot_longer(cols = 2:5, names_to = "Idade", values_to = "Altura")
+
+#Vamos verificar o tipo de cada coluna
+str(altura.l)
+
+#A primeira coluna é do tipo "fator", a coluna com a identificação das alturas
+#é do tipo "character" e a coluna com os valores das altura é do tipo "númerico"
+#Para proseguir-mos com a análise temos que transformar a coluna Idade para o 
+#tipo "fator"
+altura.l$Idade <- factor(altura.l$Idade)
+```
+
+### 4.1 Anova de Medidas Repetidas de um Fator no R Base
+
+Podemos realizar a Anova de medidas repetidas no R sem utilizar pacotes externos, apesar deste modo nos da um pouco mais de trablho, ele nos deixa livre para a estrtura que melhor representa o nosso desenho experimental. Todos os testes dos pressupostos devem ser realizados a parte.
+
+Para relembrar nossa situação experimental, tenha em mente que queremos avaliar a influência do tempo no crescimento em altura de 8 clones de *Eucalyptus* inseridos em região semiárida. O que queremos avalair não são as diferenças entre clones, mas sim, a diferença entre tempos, ou seja, queremos medir o efeito do tempo no crescimento dos clones.
+
+```{r}
+#Anova medidas repetidas, a estrutura é semelhante a anova independete a não ser pelo fator
+#que adicionamos o termo Error(Clone) ou Error(Clone/Idade) para informar para o modelo que clone possui medidas
+#repetidas.
+anova.r1 <- aov(Altura ~ Idade + Error(Clone/Idade), data = altura.l)
+summary(anova.r1)
+```
+
+Calcularemos o valor do teste de *Mauchly* para avaliarmos a esfericidade dos dados.
+
+```{r}
+#Esfericidade
+mauchly.test(lm(as.matrix(altura[2:5]) ~ 1), X = ~1)
+```
+
+Pelo p Valor (< 0,05) rejeitamos a hipótese nula de que as variâncias das diferenças entre tratamentos (condições) são semelhantes, logo teremos que conduzir alguma das correções. 
+
+A análise dos resíduos pode ser realizada de forma gráfica ou por testes. Vamos verificar a normalidade pelo tetste de Shapiro-Wilk. É importante destacar que muitos pesquisadores aplicam o teste de normalidade sobre os dados brutos, neste caso, por condição de intervenção, o que não está totalmente errado, mas não existe garantias de que sendo os dados brutos normais, os resíduos também seram. Em alguns casos, pode acontecer dos resíduos não seguirem uma distribuição normal, mesmo os dados seguindo a distribuição. Portanto é preferível aplicar o teste de hipótese sempre sobre os resíduos. 
+
+```{r}
+#Teste de Shapiro-Wilk
+shapiro.test(residuals(anova.r1$`Clone:Idade`, type = "response"))
+```
+
+Para o nosso caso verificamos que os resíduos seguem a distribuição normal (p Valor > 0,05).
+
+Vamos analsar o pressuposto de homogeneidade de variâncias por meio do gráfico dos resíduos versus valores reais. Iremos fazer uso do pacote *ggplot2* para edição de gráficos com maior qualidade.  
+
+```{r, fig.show='hold', message=F}
+#Caso não possua o pacote instalado na sua máquina execute o comando abaixo
+#install.packages("ggplot2", dependencies = T)
+library(ggplot2)
+#Lembre que a função ggplot só constroi gráficos com base em dados no
+#formato data frame, por isso, montamos um data frame com os dados
+
+#Teste do Pressuposto de Homogeneidade de Variâncias
+ggplot(data = data.frame(Real = altura.l$Altura[9:32], 
+                         Res = resid(anova.r1$`Clone:Idade`)/mean(altura.l$Altura)*100),
+       aes(x = Real, y = Res)) +
+  geom_point() + 
+  labs(x = "Altura Real (m)", y = "Resíduos (%)") +
+  ylim(-10, 10) +
+  theme_classic()
+
+
+#Testar a ausência de outliers com o gráfico de Box-Plot
+ggplot(data = altura.l, aes(x = Idade, y = Altura, color = Idade)) +
+  geom_boxplot(notch=TRUE) +
+  scale_color_grey() +
+  labs(y = "Altura Real (m)", x = "Idade (meses)") +
+  theme_classic() +
+  theme(legend.position="none") 
+```
+
+Com base no gráfico não temos indicios de falta de homogeneidade de variâncias, bem como a presença de um único *outlier* na idade de 24 meses não compromete os cálculos, logo podemos continuar com a condução da nossa análise. Veja que até agora só não conseguimos passar no pressuposto da esfericidade, o que podemos contornar com as correções propostas.
+
+### 4.2 Contrastes
+
+Ao realizarmos a Anova o teste F nos informa apenas a existência ou não de diferenças entre os tratamentos. No entanto, quando realizamos uma pesquisa estamos interessados em conhecer quais os tratamentos diferem entre si. A forma mais comum que estamos acostumados a encontrar estas diferenças é por meio do emprego de testes de comparações múltiplas (*post hoc*), porém a maneira mais direta de realizar estas comparações é por meio de **contrastes**. Utilizando contrastes é possível ao experimentador estabelecer as comparações entre tratamentos que realmente são de interesse. Assim, usamos testes de comparações múltiplas quando não temos hipótese especifícas sobre as comparações que queremos fazer, já quando temos hipótese especifícas a qual queremos testar podemos fazer uso de **contrastes**.
+
+#### 4.2.1 Contrastes Teoria
+
+Como podemos construir nossos contrastes? Estatísticamente podemos definir um contraste como uma combinação linear dos parâmetros:
+
+$$\lambda = \sum_{i=1}^a c_i \mu_i$$
+
+Em que: $\sum_{i=1}^a c_i = 0$, para constrastes ortogonais.
+
+O que estamos afirmando com isto é, multiplicaremos valores constantes pela média em cada tratamento de forma que cada grupo de tratamento apareça no vetor de dados em determinado momento.
+
+Para facilitar o entendimento vamos considerar o experimento de exemplo, estamos interessados em comparar a altura em diferentes idades, desta forma podemos criar contrastes para indicar estas comparações. Temos um total de quatro idades, para criarmos os contrastes temos que criar 3 variáveis *dummy*, que são variáveis bináris (se temos 4 grupos/tratamentos, teremos $4-1$ variáveis  *dummy*). O que queremos construir aqui, são três variáveis *dummy* que indiquem os tratamentos que queremos comparar. 
+
+Veja que temos 4 idades diferentes, então queremos construir contrastes que permitam as comparações entre estas idades. O primeiro **constraste 1** pode ser a comparação da variação média da Idade 18 e Idade 24 entre as Idades 30 e 36. O segundo **constraste 2** vamos criar para separar a comparação entre Idade 18 e Idade 24. No **constraste 3** vamos separa a comparação entre Idade 30 e Idade  36. Quando queremos separar comparações por constrastes, empregamos um número (positivo para indicar a presença e negativo para indicar a comparação, aqui pode ser $1, -1, 2, -2,...$, a depender da soma para tornar os constrstes ortogonais, ou seja, a soma ser igural a $0$), quando queremos excluir um tratamento da comparação atribuímos o número 0. Vamos vê os contrastes criados na Tabela abaixo.
+
+Grupo    | Contraste 1 | Contraste 2 | Contraste 3
+---------|-------------|-------------|-------------
+Idade 18 |    -1       |     -1      |     0
+Idade 24 |    -1       |      1      |     0
+Idade 30 |     1       |      0      |    -1
+Idade 36 |     1       |      0      |     1
+
+Se somarmos cada constraste o resultado será $0$, ou seja, temos contrastes ortogonais. Podemos criar também constrastes não ortogonais, não vamos detalhar isto aqui, mas tenha em mente que muitos *softwares* utilizam constrastes não ortogonais como padrão.
+
+
+#### 4.2.2 Contrastes no R
+
+Por padrão o R não utiliza contrastes ortogonais, a depender de como conduzimos nossa análise de variância, principalmente se utilizarmos a soma de quadrados do tipo 3 (*Type III*) podemos chegar em resultados distorcidos. 
+
+Manualmente podemos criar nossos constrastes, primeiramente vamos consultar os contrastes que  o R está utilizando.
+
+```{r}
+#Consultando os constrastes
+contrasts(altura.l$Idade)
+```
+
+Agora vamos atribuir contrastes ortogonais para a nossa variável idade.
+
+```{r}
+#Criando contasrtes ortogonais
+I1824vsI3036 <- c(-1, -1, 1, 1)
+I18vsI24 <- c(-1, 1, 0, 0)
+I30vsI36 <- c(0, 0, -1, 1)
+
+#Atribuindo os contrastes a variável Idade
+contrasts(altura.l$Idade) <- cbind(I1824vsI3036, I18vsI24, I30vsI36)
+
+#Visualizando os contrastes criados
+contrasts(altura.l$Idade)
+```
+
+Automaticamente o R dispõe de algumas funções que podem alterar o tipo contraste. Vamos verificar algumas delas. Vejamos algumas destas funções:
+
+```
+contr.helmert(n)
+contr.poly(n)
+contr.sum(n)
+contr.SAS(n)
+contr.treatment(n, base = x)
+```
+
+Vejamos alguns exeplos com estas funções, utilazando valor de $n = 4$, para o caso do nosso exemplo.
+
+```{r}
+#Contrastes de Helmert
+contr.helmert(4)
+
+#Contrastes de Polinomiais
+contr.poly(4)
+
+#Contrastes Aditivos
+contr.sum(4)
+
+#Contrastes Semelhantes aos definidos pelo SAS
+contr.SAS(4)
+
+#Contrastes Semelhantes aos definidos pelo SAS, mas escolhendo o grupo de 
+#tratamento que será utilizado como grupo inicial
+contr.treatment(4, base = 1)
+```
+
+Os contrastes criados com as funções ```contr.SAS``` e ```contr.treatment``` não são ortogonais, os demais atendem a esta condição.
+
+### 4.3 Anova de Medidas Repetidas de um Fator com o pacote rstatix
+
+Agova vamos realizar a mesma análise de variância de medidas repetidas sobre os dados experimentais utilizando o pacote *rstatix*. 
+
+Explicando os parâmetros, ```data``` corresponde ao conjunto de dados que estamos utilizando (*data frame*), ```dv``` é a variável dependente (resposta-contínua), ```wid``` coluna do tipo (fator) contendo a identificação do indivíduo (pessoa, planta etc. Geralmente é representada por um código ou por números), ```within``` varável do tipo fator que indica que queremos comparar as diferenças  dentre intervenções no mesmo indivíduo.
+
+```{r}
+#Instale o pacote rstatix, descomente a linha abaixo
+#install.packages("rstatix", dependencies = T)
+
+#Carregue o pacote
+library(rstatix)
+
+#Anova de medidas repetidas
+anova.rstat <- anova_test(data = altura.l, dv = Altura, wid = Clone, within = Idade)
+anova.rstat
+```
+
+A saída contém a tabela da análise de variância sem considerar a necessidade da correção por esfericidade. A mesma contém as informações de fonte de variação, graus de liberdade, soma de quadrados, quadrados médios, valor de F e p - Valor. O parâmetro ```ges``` correponde a uma estatística de *eta ao quadrado generalizado* que é o efeito de tamanho (referente a quantidade da variabilidade devido ao fator dentre índivíduos).
+
+Logo abaixo da tabela da Anova temos o valor do teste de esfericidade de Mauchly, e as correções para os graus de liberdade com o cálculo do valor de F corrigido por meio das metodologia de **Greenhouse e Geisser** e **Huynh e Feldt**.   
+
+Vamos pegar a tabela de forma mais resumida com as correções de **Greenhouse e Geisser** como ($\epsilon < 0,75$). Como vimos olhando para a correção do teste F podemos afirmar que existem diferenças significativas entre as idades.
+
+```{r}
+get_anova_table(anova.rstat, correction = c("auto", "GG", "HF", "none"))
+```
+
+
+### 4.4 Anova de Medidas Repetidas de um Fator com o pacote Ez
+
+Da mesma forma vamos conduzir as análises com o pacote *ez*, que é uma forma fácil (**easy**) de conduzir análises de variâncias independentes, com medidas repetidas, mistas, com e sem a presença de covariâncias.
+
+Os parâmetros da função são os mesmos do pacote *rstatix*, ```data``` corresponde ao conjunto de dados que estamos utilizando (*data frame*), ```dv``` é a variável dependente (resposta-contínua), ```wid``` coluna do tipo (fator) contendo a identificação do indivíduo (pessoa, planta etc. Geralmente é representada por um código ou por números), ```within``` varável do tipo fator que indica que queremos comparar as diferenças  dentre intervenções no mesmo indivíduo e ```detailed``` se verdadeiro ele libera mais informações do tipo somade quadrados e intercepto. 
+
+```{r}
+#Instale o pacote rstatix, descomente a linha abaixo
+#install.packages("ez", dependencies = T)
+
+#Carregue o pacote
+library(ez)
+anova.ez <- ezANOVA(data = altura.l, dv = Altura, wid = .(Clone), within = .(Idade), 
+                    detailed = T, type = 3)
+anova.ez
+```
+
+As saídas são bastante semelhantes às apresentadas para o pacote *rstatix* não serão mais detalhadas aqui.
+
+### 4.5 Anova de Medidas Repetidas de um Fator com o pacote lmer
+
+Todas estas formas que desenvolvemos até agora são formas simples de conduzir Anova de medidas repetidas, mas um pouco restritivas quanto a interpretação dos contrastes e pouco usuais para os testes de médias que pretendemos utilizar.
+
+Podemos conduzir uma Anova de medidas repetidas fazendo uso dos modelos lineares mistos (também conhecidos como modelos lineares multinível ou hierárquicos). Não cabe aqui uma explicação detalhada do que é um modelo linear misto (consulte o artigo sobre modelos lineares mistos no R), mas tenha em mente que como um dos pressupostos dos modelos lineares é a existência de indepedência entre os dados, o modelo linear misto contorna este problema tratando os dados dentro de cada classse de repetição (detalhes estatísticos não serão apresentados aqui).
+
+Esta metodologia nos deixa mais flexíveis quanto a intepretação dos contrastes e para realizarmos os testes de comparações múltiplas. Vamos conduzir esta análise com o pacote ```lme4```, a forma é semelhante ao ajuste de modelos lineares ou como usamos aqui ```aov```. informaremos a nossa variável dependente, a variável com a informação do tratamento/condição e o efeito aleatório (com o parâmetro ```random```) que no caso será o  *Clone/Idade*. 
+
+```{r}
+#Instale o pacote
+#install.packages("lme4")
+
+#Carregue o pacote
+library(lme4)
+library(lmerTest) #use para computar o p valor para o coeficientes do modelo
+
+#Ajuste do modelo linear misto
+mod.misto <- lmer(Altura ~ Idade + (1|Clone), data = altura.l, REML = F)
+summary(mod.misto)
+
+```
+
+A saída deste modelo contém os valores dos coeficientes da equação, veja que, agora conseguimos interpretar melhor os três contrastes que criamos, logo podemos fazer as comparações com base nos contrastes. Quando comparamos as Idades 18 e 24 com as Idades 30 e 36 obtemos diferenças significantes com um valor de $\hat{\beta}_1 = 1,3781$ com valor do teste T de $65,20$ e p valor $<0,05$. A média da altura das Idades 18 e 24 é menor que a média das Idades 30 e 36, que pode ser obtida por meio da soma do intercepto com o coeficente $\hat{\beta}_1$ ($8,6156 + 1,3781 = 9,9937$). O coeficiente $\hat{\beta}_2 = 0,925$ equivale a diferença da média dividido por duas unidades entre as Idades 18 e 24, como podemos ver também apresentam diferenças signifcativas e o coeficiente $\hat{\beta}_3 = 0,4187$ também equivale a metade das diferenças das Idades 30 e 36, esta também possue diferença significativa.     
+
+### 4.6 Teste de comparações múltiplas
+
+#### 4.6.1 Teste T pareado
+
+Uma das opções para empregarmos é o teste T pareado e fazer comparações do tipo dois a dois. No *R Base* (o que é base do R, ou seja, funções que carregam ao iniciarmos o R) podemos utilizar a função ```pairwise.t.test```, indicando a variável dependente (resposta), a variável independente (que contém os grupos ou condições), informar que estamos utilizando o teste pareado com o argumento ```paired = T``` e informar o tipo de ajuste que queremos calcular para o p Valor ```method = "metodo escolhido"``` (os métodos são: bonferroni, holm, hochberg, hommel, BH "Benjamini-Hochberg"). Comparações par a par utilizando o teste T podem inflacionar a tatxa de erros de grupos semelhantes, por isto estas correções ajudam a contorna este problema.   
+
+Para o nosso exemplo podemos executar o seguinte comando.
+
+```{r}
+pairwise.t.test(altura.l$Altura, altura.l$Idade, paired = T, p.adjust.method = "bonferroni")
+```
+
+Por meio do teste temos que todas as idade diferem entre si com um p Valor menor que $0.05$.
+
+#### 4.6.2 Gráficos com medidas descritivas
+
+Para representarmos de forma visual a mia de altura dos clones em cada Idade podemos utilizar recursos gráficos.
+
+```{r fig.align="center", fig.width=5, fig.height=5}
+#Vamos criar estatísticas de resumos para o conjunto de daods
+altura.lm <- altura.l %>% 
+  group_by(Idade) %>% 
+  summarise(AlturaM = mean(Altura), AlturaSd = sd(Altura)/sqrt(n()))
+altura.lm
+#Criando um gráfico de barras
+ggplot(data = altura.lm, aes(Idade, AlturaM, color = Idade)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = AlturaM - AlturaSd, ymax = AlturaM + AlturaSd),
+                width = 0.5, alpha = 1) +
+  scale_color_grey() +
+  labs(x = "Idade (meses)", y = "Altura (m)") +
+  theme_classic() + 
+  theme(legend.position = "none")
+
+```
+
+
+#### 4.6.3 Teste de comparações múltiplas
+
+Vamos proceder com um dos testes mais utilizados para comparações múltiplas, o teste de Tukey, mas lembre que dependendo de suas hipóteses e situação experimental outros testes podem ser indicados.
+
+Cabe alertar que para conduzir o teste de médias temos que proceder com o uso dos modelos lineares mistos. No R para conduzirmos o teste vamos utilizar o pacote ```multicomp"```, empregando a função ```glht``` com os seguintes parâmetros: ```aovModel``` (o modelo *aov* que criamos inicalmente), ```linfct = mcp(predictor = "method")"``` (neste parâmetro informaremos a variável preditora (predictor) e o tipo de teste que utilizaremos (method), as opções para testes são: “AVE”, “Tukey”, “Dunnett”, “Sequen”, “Williams”, “Marcus”, “Changepoint” “GrandMean”, “McDermott” e “UmbrellaWilliams”).
+
+```{r }
+#Instale o pacote rstatix, descomente a linha abaixo
+#install.packages("multicomp", dependencies = T)
+
+#Carregue o pacote
+library(multcomp)
+
+compTest <- glht(mod.misto, linfct = mcp(Idade = "Tukey"))
+summary(compTest)
+confint(compTest)
+```
+
+
+## 5. Anova de medidas repetidas de dois fatores 
+
+
+
+
+## 6. Anova de medidas repetidas com interação
+
+## 7. Conclusões
+
+Com este material apresentamos a teoria da Anova de medidas repetidas, apresentado todas as expressões para o cálculo de forma manual, apresentamos os pressupostos que garantem a validade dos resultados, também foi apresentado correções para quando um dos pressupostos não é atendido. Uma explicação etalhada sobre os contrastes na Anova foi apresentada, bem como, como foi apresentado em códigos como alterar os contrastes no R.
+
+Foram apresentados três scripts diferentes para a condução da análise de variância de um fator. Na primeira codificação foi apresentada a forma utilizando apenas funções base do R, de maneira a não deixar o leitor obrigado a seguir padrão imposto e rigído de pacotes já desenvolvidos. Para facilitar a vida daqueles menos dispostos a codificação foi desenvolvido os scripts nos dois pacotes para a condução das análises.
+
+Para a análise de variância de dois fatores e na presença de interação foi desenvolvido sripts utilizando o pacote *ez*.
+
+Os scripts com os testes de comparações múltiplas para todas as situações de análise também foi desenvolvido.
+
+
+## Referências
+
+BREUSCH, T. S.; PAGAN, A. R. A simple test for heteroscedasticity and random
+coefficient variation. **Econometrica: Journal of the Econometric Society**, p.
+1287–1294, 1979.
+
+Field, A. P., & Miles, J. N. V. *Discovering statistics using R: And sex and drugs and rock ’n’ roll*. London: Sage. pp. 993, 2017.
+
+Greenhouse, S. W., & Geisser, S. On methods in the analysis of profile data. **Psychometrika**, 24, 95–112, 1959.
+
+Huynh, H., & Feldt, L. S. Estimation of the Box correction for degrees of freedom from sample data in randomised block and split-plot designs. **Journal of Educational Statistics**, 1(1), 69–82, 1976.
+
+Fox J. & Weisberg S. An R Companion to Applied Regression, Third Edition. Thousand Oaks CA, Disponível em: https://socialsciences.mcmaster.ca/jfox/Books/Companion/, 2019.
+
+Kassambara, A. rstatix: Pipe-Friendly Framework for Basic Statistical Tests. R package version 0.6.0. Disponível em: https://CRAN.R-project.org/package=rstatix, 2020.
+
+Lawrence M. A. ez: Easy Analysis and Visualization of Factorial Experiments. R package version 4.4-0. Disponível em: https://CRAN.R-project.org/package=ez, 2016.
+
+SHAPIRO, S. S.; WILK, M. B. An analysis of variance test for normality (complete samples). **Biometrika**, p. 591–611, 1965.
+
+WHITE, H. A heteroskedasticity-consistent covariance matrix estimator and a direct
+test for heteroskedasticity. Econometrica: Journal of the Econometric Society, p.
+817–838, 1980.
